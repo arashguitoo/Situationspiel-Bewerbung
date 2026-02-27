@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Bewerbungssimulation</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+<style>
+/* ══════════════════════════════════════
+   DESIGN: Industrial / Job-Board Aesthetic
+   Dark slate + amber employer / sky employee
+   Font: Syne (display) + DM Sans (body)
+══════════════════════════════════════ */
+:root {
+  --bg:        #0c0f14;
+  --surface:   #141920;
+  --surface2:  #1c2330;
+  --border:    rgba(255,255,255,0.07);
+  --amber:     #f59e0b;
+  --amber-dim: rgba(245,158,11,0.12);
+  --sky:       #38bdf8;
+  --sky-dim:   rgba(56,189,248,0.12);
+  --rose:      #fb7185;
+  --green:     #34d399;
+  --text:      #f1f5f9;
+  --muted:     #64748b;
+  --radius:    16px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { font-size: 16px; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* ── SCREENS ── */
+.screen { display: none; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+.screen.active { display: flex; }
+
+/* ══════════════════════════════════════
+   SETUP SCREEN
+══════════════════════════════════════ */
+#setupScreen {
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem 3rem;
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 0%, rgba(245,158,11,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 10% 100%, rgba(56,189,248,0.06) 0%, transparent 60%),
+    var(--bg);
+}
+
+.setup-wrap { max-width: 420px; width: 100%; }
+
+.brand {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.brand-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: var(--text);
+  line-height: 1.1;
+}
+.brand-title .highlight { color: var(--amber); }
+.brand-sub { color: var(--muted); font-size: 0.82rem; margin-top: 0.4rem; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.75rem 1.5rem;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+}
+
+.field-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+  margin-top: 1.1rem;
+}
+.field-label:first-child { margin-top: 0; }
+
+.field-input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+.field-input:focus { border-color: var(--amber); }
+.field-input::placeholder { color: var(--muted); }
+
+/* Role toggle */
+.role-toggle {
+  display: flex;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+}
+.role-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 9px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--muted);
+  background: transparent;
+  min-height: 48px;
+}
+.role-btn.active-mod { background: var(--amber); color: #000; }
+.role-btn.active-part { background: var(--sky); color: #000; }
+
+/* Number input */
+.num-control {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.num-btn {
+  width: 52px;
+  height: 52px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.num-btn:active { background: rgba(255,255,255,0.08); }
+.num-val {
+  flex: 1;
+  text-align: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--amber);
+}
+
+/* Ratio display */
+.ratio-box {
+  background: var(--amber-dim);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 1rem;
+}
+.ratio-item { flex: 1; text-align: center; }
+.ratio-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  display: block;
+  line-height: 1;
+}
+.ratio-label { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
+
+/* Buttons */
+.btn {
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.btn:active { transform: scale(0.97); }
+.btn-amber { background: var(--amber); color: #000; }
+.btn-sky { background: var(--sky); color: #000; }
+.btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-green { background: var(--green); color: #000; }
+.btn-rose { background: var(--rose); color: #fff; }
+
+.room-code-input {
+  font-size: 1.5rem;
+  text-align: center;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════
+   LOBBY SCREEN
+══════════════════════════════════════ */
+#lobbyScreen {
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  background: var(--bg);
+}
+.lobby-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.75rem 1.5rem;
+  max-width: 420px;
+  width: 100%;
+}
+.code-display {
+  font-family: 'Syne', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 800;
+  letter-spacing: 10px;
+  color: var(--amber);
+  text-align: center;
+  background: var(--amber-dim);
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin: 0.5rem 0 1.25rem;
+}
+.participants-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 44px;
+  margin-bottom: 0.75rem;
+}
+.p-chip {
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: var(--sky-dim);
+  border: 1px solid rgba(56,189,248,0.3);
+  color: var(--sky);
+}
+.lobby-status { color: var(--muted); font-size: 0.85rem; text-align: center; margin-bottom: 0.85rem; }
+
+/* ══════════════════════════════════════
+   LOADING SCREEN
+══════════════════════════════════════ */
+#loadingScreen {
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+.loading-wrap { text-align: center; padding: 2rem; }
+.spinner {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 4px solid var(--border);
+  border-top-color: var(--amber);
+  animation: spin 0.9s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-wrap h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--amber);
+  margin-bottom: 0.4rem;
+}
+.loading-wrap p { color: var(--muted); font-size: 0.9rem; }
+.dot-row { display: flex; gap: 0.4rem; justify-content: center; margin-top: 1rem; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); animation: dotpulse 1.4s ease-in-out infinite; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotpulse { 0%,80%,100%{opacity:0.15} 40%{opacity:1} }
+
+/* ══════════════════════════════════════
+   WAITING SCREEN (participants)
+══════════════════════════════════════ */
+#waitingScreen {
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+.waiting-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2.5rem 1.75rem;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+}
+.waiting-card .icon { font-size: 3rem; display: block; margin-bottom: 1rem; }
+.waiting-card h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.5rem;
+  color: var(--sky);
+  margin-bottom: 0.5rem;
+}
+.waiting-card p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+
+/* ══════════════════════════════════════
+   CARD SCREEN
+══════════════════════════════════════ */
+#cardScreen { background: var(--bg); overflow-y: auto; }
+
+.card-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.topbar-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.round-pill {
+  background: var(--surface2);
+  border-radius: 20px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.card-content {
+  padding: 1rem 1rem 5rem;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── ROLE CARD ── */
+.role-card {
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  animation: cardReveal 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes cardReveal {
+  from { opacity: 0; transform: scale(0.85) translateY(24px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+/* Employer card */
+.card-employer {
+  background: linear-gradient(145deg, #1a1500 0%, #1f1c00 100%);
+  border: 1.5px solid rgba(245,158,11,0.4);
+  box-shadow: 0 0 40px rgba(245,158,11,0.08);
+}
+/* Employee card */
+.card-employee {
+  background: linear-gradient(145deg, #00141f 0%, #001a28 100%);
+  border: 1.5px solid rgba(56,189,248,0.4);
+  box-shadow: 0 0 40px rgba(56,189,248,0.08);
+}
+
+.card-band {
+  padding: 1.25rem 1.25rem 1rem;
+}
+.card-role-tag {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.card-employer .card-role-tag { color: var(--amber); }
+.card-employee .card-role-tag { color: var(--sky); }
+
+.card-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.05;
+  margin-bottom: 0.3rem;
+}
+.card-employer .card-name { color: var(--amber); }
+.card-employee .card-name { color: var(--sky); }
+
+.card-sub { font-size: 0.88rem; color: rgba(241,245,249,0.6); margin-bottom: 0; }
+
+.card-sep { height: 1px; background: rgba(255,255,255,0.06); margin: 0 1.25rem; }
+
+.card-body {
+  padding: 1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.card-row {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+.card-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  width: 22px;
+  text-align: center;
+}
+.card-info { font-size: 0.88rem; line-height: 1.5; color: rgba(241,245,249,0.8); }
+.card-info strong { color: var(--text); font-weight: 700; }
+
+.card-footer {
+  padding: 0 1.25rem 1.25rem;
+}
+.phrases-btn {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+.phrases-btn:active { transform: scale(0.97); }
+.card-employer .phrases-btn {
+  background: var(--amber-dim);
+  border: 1.5px solid rgba(245,158,11,0.35);
+  color: var(--amber);
+}
+.card-employee .phrases-btn {
+  background: var(--sky-dim);
+  border: 1.5px solid rgba(56,189,248,0.35);
+  color: var(--sky);
+}
+
+/* ── MODERATOR PANEL ── */
+.mod-panel {
+  background: var(--surface2);
+  border: 1px solid rgba(251,113,133,0.25);
+  border-radius: 16px;
+  padding: 1.1rem;
+  margin-bottom: 1rem;
+}
+.mod-panel-title {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--rose);
+  font-weight: 800;
+  margin-bottom: 0.9rem;
+}
+.mod-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+.mod-stat {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 0.65rem 0.4rem;
+  text-align: center;
+}
+.mod-stat-n {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+  display: block;
+}
+.mod-stat-l { font-size: 0.68rem; color: var(--muted); margin-top: 0.2rem; }
+.mod-btns { display: flex; gap: 0.6rem; }
+.mod-btns .btn { margin-top: 0; }
+
+/* All cards list */
+.all-cards-section { margin-top: 1rem; }
+.all-cards-title {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  padding: 0 0.25rem;
+}
+.mini-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.mini-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.mini-card-info { flex: 1; min-width: 0; }
+.mini-card-name { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+.mini-card-sub { font-size: 0.75rem; color: var(--muted); }
+
+/* ── INSTRUCTIONS BOX ── */
+.info-box {
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: rgba(241,245,249,0.65);
+  border: 1px solid var(--border);
+}
+.info-box strong { color: var(--text); }
+
+/* ══════════════════════════════════════
+   PHRASES MODAL (bottom sheet)
+══════════════════════════════════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 100;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-sheet {
+  background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid var(--border);
+  padding: 1.5rem 1.25rem 3rem;
+  width: 100%;
+  max-width: 480px;
+  max-height: 82vh;
+  overflow-y: auto;
+  animation: sheetUp 0.3s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 2px;
+  margin: 0 auto 1.25rem;
+}
+.sheet-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-bottom: 1.1rem;
+}
+.phrase-section { margin-bottom: 1.25rem; }
+.phrase-section-title {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.phrase-item {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  border-left: 3px solid transparent;
+}
+.phrase-amber { border-left-color: var(--amber); }
+.phrase-sky   { border-left-color: var(--sky); }
+.sheet-close {
+  width: 100%;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  min-height: 48px;
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ SETUP ══════════════ -->
+<div class="screen active" id="setupScreen">
+  <div class="setup-wrap">
+    <div class="brand">
+      <div class="brand-title">BEWERBUNGS<br><span class="highlight">SIMULATION</span></div>
+      <p class="brand-sub">KI-generierte Rollenspielkarten · Firebase · B1/B2</p>
+    </div>
+
+    <div class="card">
+      <!-- Role toggle -->
+      <div class="field-label">Meine Rolle</div>
+      <div class="role-toggle">
+        <button class="role-btn active-mod" id="btnMod" onclick="selectRole('mod')">🎓 Moderator</button>
+        <button class="role-btn" id="btnPart" onclick="selectRole('part')">👤 Teilnehmer</button>
+      </div>
+
+      <!-- MODERATOR section -->
+      <div id="secMod">
+        <div class="field-label">Anzahl Teilnehmer</div>
+        <div class="num-control">
+          <button class="num-btn" onclick="changeN(-1)">−</button>
+          <div class="num-val" id="numVal">12</div>
+          <button class="num-btn" onclick="changeN(+1)">+</button>
+        </div>
+        <div class="ratio-box" id="ratioBox"></div>
+        <button class="btn btn-amber" onclick="createRoom()">
+          🎲 Raum erstellen & Karten generieren
+        </button>
+      </div>
+
+      <!-- PARTICIPANT section -->
+      <div id="secPart" style="display:none">
+        <div class="field-label">Dein Name</div>
+        <input class="field-input" id="inpName" placeholder="z.B. Maria" maxlength="20" autocomplete="off">
+        <div class="field-label">Raum-Code</div>
+        <input class="field-input room-code-input" id="inpCode" placeholder="KIEL" maxlength="6" autocomplete="off">
+        <button class="btn btn-sky" onclick="joinRoom()">Beitreten →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ LOBBY ══════════════ -->
+<div class="screen" id="lobbyScreen">
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem">
+    <div class="lobby-card">
+      <p style="text-align:center;font-size:0.68rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:0.25rem">Raum-Code</p>
+      <div class="code-display" id="codeDisplay">––––</div>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.5rem">
+        Teilnehmer (<span id="pCount">0</span>):
+      </p>
+      <div class="participants-wrap" id="pList"></div>
+      <p class="lobby-status" id="lobbyStatus">Warte auf Teilnehmer...</p>
+      <div id="modLobbyBtn" style="display:none">
+        <button class="btn btn-green" onclick="startRound()">▶ Runde starten</button>
+      </div>
+      <p id="partLobbyMsg" style="text-align:center;color:var(--muted);font-size:0.88rem">
+        ⏳ Warte auf den Moderator...
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ LOADING ══════════════ -->
+<div class="screen" id="loadingScreen">
+  <div class="loading-wrap" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div class="spinner"></div>
+    <h2>KI erstellt Steckbriefe</h2>
+    <p>Vielfältige Rollen werden generiert…</p>
+    <div class="dot-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+  </div>
+</div>
+
+<!-- ══════════════ WAITING ══════════════ -->
+<div class="screen" id="waitingScreen">
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:1.5rem">
+    <div class="waiting-card">
+      <span class="icon">⏳</span>
+      <h2>Gleich geht's los!</h2>
+      <p>Der Moderator generiert die Steckbriefe.<br>Du bekommst gleich deine Karte.</p>
+      <div class="dot-row" style="justify-content:center;margin-top:1.25rem">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CARD SCREEN ══════════════ -->
+<div class="screen" id="cardScreen">
+  <div class="card-topbar">
+    <span class="topbar-title">🎭 Bewerbungssimulation</span>
+    <span class="round-pill" id="roundPill">Runde 1</span>
+  </div>
+  <div class="card-content" id="cardContent">
+    <!-- Injected by JS -->
+  </div>
+</div>
+
+<!-- ══════════════ PHRASES MODAL ══════════════ -->
+<div class="modal-overlay" id="phrasesModal" onclick="handleModalClick(event)">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="sheetTitle">💬 Sprechbausteine</div>
+    <div id="sheetContent"></div>
+    <button class="sheet-close" onclick="closeModal()">Schließen</button>
+  </div>
+</div>
+
+<script data-goatcounter="https://aguitoo.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+
+<script>
+// Global error handler
+window.addEventListener('error', function(e) {
+  console.error('Global error:', e.message, e.filename, e.lineno);
+});
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('Unhandled promise rejection:', e.reason);
+});
+
+// ══════════════════════════════════════
+// FIREBASE CONFIG
+// ══════════════════════════════════════
+const FB_CONFIG = {
+  apiKey: "AIzaSyBDChXlm34Kr7Gg0Dw458GiiwoLnWJAnxM",
+  authDomain: "lern-deutsch-arash.firebaseapp.com",
+  databaseURL: "https://lern-deutsch-arash-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "lern-deutsch-arash",
+  storageBucket: "lern-deutsch-arash.firebasestorage.app",
+  messagingSenderId: "845503292114",
+  appId: "1:845503292114:web:f76ab5fcde1e978d00c30b"
+};
+
+// ══════════════════════════════════════
+// SPRECHBAUSTEINE
+// ══════════════════════════════════════
+const PHRASES_EMPLOYER = [
+  {
+    title: "🏢 Stelle vorstellen",
+    items: [
+      "Guten Tag! Wir suchen eine/n …, der/die … kann.",
+      "Die Stelle ist in … und beginnt am …",
+      "Wir bieten … Euro pro Monat und …",
+      "Die Arbeitszeit ist … Stunden pro Woche.",
+      "Wir suchen jemanden mit Erfahrung in …",
+      "Eine Ausbildung als … ist von Vorteil."
+    ]
+  },
+  {
+    title: "❓ Bewerber befragen",
+    items: [
+      "Können Sie mir etwas über sich erzählen?",
+      "Was sind Ihre Stärken?",
+      "Haben Sie Erfahrung mit …?",
+      "Warum möchten Sie bei uns arbeiten?",
+      "Wann könnten Sie anfangen?",
+      "Haben Sie noch Fragen an uns?"
+    ]
+  },
+  {
+    title: "✅ Reaktionen",
+    items: [
+      "Das klingt sehr gut – das passt zu uns!",
+      "Können Sie noch mehr über … erzählen?",
+      "Das ist leider nicht ganz das, was wir suchen.",
+      "Wir melden uns in den nächsten Tagen bei Ihnen.",
+      "Sie sind eingeladen zum Vorstellungsgespräch!",
+      "Das ist genau das Profil, das wir suchen."
+    ]
+  }
+];
+
+const PHRASES_EMPLOYEE = [
+  {
+    title: "👤 Sich vorstellen",
+    items: [
+      "Guten Tag! Mein Name ist … Ich bewerbe mich für die Stelle als …",
+      "Ich habe … Jahre Erfahrung als … in …",
+      "Ich habe eine Ausbildung als … gemacht.",
+      "Meine Stärken sind … und …",
+      "Ich bin teamfähig, zuverlässig und lernbereit.",
+      "Ich spreche … und lerne gerade Deutsch."
+    ]
+  },
+  {
+    title: "💬 Grammatik nutzen",
+    items: [
+      "Es fällt mir leicht, … zu …",
+      "Es fällt mir manchmal schwer, … zu …",
+      "Ich versuche immer, … zu …",
+      "Es ist mir wichtig, … zu …",
+      "Ich hoffe, bei Ihnen … zu können.",
+      "Ich habe keine Angst davor, … zu …"
+    ]
+  },
+  {
+    title: "❓ Rückfragen",
+    items: [
+      "Wie sind die genauen Arbeitszeiten?",
+      "Gibt es Möglichkeiten zur Weiterbildung?",
+      "Wie ist das Team aufgestellt?",
+      "Ist Homeoffice möglich?",
+      "Wann würde ich anfangen?",
+      "Was sind die Hauptaufgaben der Stelle?"
+    ]
+  }
+];
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let db       = null;
+let myRole   = 'mod';        // 'mod' | 'part'
+let roomId   = null;
+let myId     = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+let myName   = '';
+let numTN    = 12;
+let round    = 1;
+
+// ══════════════════════════════════════
+// SETUP UI
+// ══════════════════════════════════════
+function selectRole(r) {
+  myRole = r;
+  document.getElementById('btnMod').className  = 'role-btn' + (r==='mod'  ? ' active-mod'  : '');
+  document.getElementById('btnPart').className = 'role-btn' + (r==='part' ? ' active-part' : '');
+  document.getElementById('secMod').style.display  = r==='mod'  ? 'block' : 'none';
+  document.getElementById('secPart').style.display = r==='part' ? 'block' : 'none';
+}
+
+function changeN(d) {
+  numTN = Math.max(2, Math.min(40, numTN + d));
+  document.getElementById('numVal').textContent = numTN;
+  renderRatio();
+}
+
+function renderRatio() {
+  const ag = Math.floor(numTN / 2.2);   // Arbeitgeber
+  const an = numTN - ag;                // Arbeitssuchende (20% mehr)
+  document.getElementById('ratioBox').innerHTML = `
+    <div class="ratio-item">
+      <span class="ratio-num" style="color:var(--amber)">${ag}</span>
+      <div class="ratio-label">🏢 Arbeitgeber</div>
+    </div>
+    <div class="ratio-item" style="border-left:1px solid var(--border);border-right:1px solid var(--border)">
+      <span class="ratio-num" style="color:var(--sky)">${an}</span>
+      <div class="ratio-label">👤 Arbeitssuchende</div>
+    </div>
+    <div class="ratio-item">
+      <span class="ratio-num" style="color:var(--muted)">${numTN}</span>
+      <div class="ratio-label">Gesamt</div>
+    </div>`;
+}
+renderRatio();
+
+// ══════════════════════════════════════
+// FIREBASE
+// ══════════════════════════════════════
+function initDB() {
+  if (!db) {
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(FB_CONFIG);
+      }
+      db = firebase.database();
+    } catch(e) { alert('Firebase Fehler: ' + e.message); return false; }
+  }
+  return true;
+}
+
+function genCode() {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  return Array.from({length:4}, () => abc[Math.floor(Math.random()*abc.length)]).join('');
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ══════════════════════════════════════
+// CREATE ROOM (Moderator)
+// ══════════════════════════════════════
+async function createRoom() {
+  if (!initDB()) return;
+  myName = 'Moderator';
+  roomId = genCode();
+  await db.ref(`sim2/${roomId}`).set({ status:'lobby', round:1, numTN, createdAt:Date.now() });
+  await db.ref(`sim2/${roomId}/participants/${myId}`).set({ name:'Moderator', isMod:true });
+  listenLobby();
+  document.getElementById('codeDisplay').textContent = roomId;
+  document.getElementById('modLobbyBtn').style.display = 'block';
+  document.getElementById('partLobbyMsg').style.display = 'none';
+  showScreen('lobbyScreen');
+}
+
+// ══════════════════════════════════════
+// JOIN ROOM (Participant)
+// ══════════════════════════════════════
+function joinRoom() {
+  myName = document.getElementById('inpName').value.trim();
+  const code = document.getElementById('inpCode').value.trim().toUpperCase();
+  if (!myName) { alert('Bitte Namen eingeben!'); return; }
+  if (!code)   { alert('Bitte Code eingeben!');  return; }
+  if (!initDB()) return;
+  roomId = code;
+  db.ref(`sim2/${roomId}/participants/${myId}`).set({ name:myName, isMod:false });
+  listenLobby();
+  document.getElementById('codeDisplay').textContent = roomId;
+  document.getElementById('modLobbyBtn').style.display = 'none';
+  document.getElementById('partLobbyMsg').style.display = 'block';
+  showScreen('lobbyScreen');
+}
+
+// ══════════════════════════════════════
+// LOBBY LISTENERS
+// ══════════════════════════════════════
+function listenLobby() {
+  // Participants list
+  db.ref(`sim2/${roomId}/participants`).on('value', snap => {
+    const parts = snap.val() || {};
+    const people = Object.values(parts).filter(p => !p.isMod);
+    document.getElementById('pCount').textContent = people.length;
+    const list = document.getElementById('pList');
+    list.innerHTML = '';
+    people.forEach(p => {
+      const chip = document.createElement('div');
+      chip.className = 'p-chip';
+      chip.textContent = p.name;
+      list.appendChild(chip);
+    });
+    document.getElementById('lobbyStatus').textContent =
+      people.length === 0 ? 'Warte auf Teilnehmer...'
+                          : `${people.length} Teilnehmer beigetreten`;
+  });
+
+  // Status changes
+  db.ref(`sim2/${roomId}/status`).on('value', snap => {
+    const s = snap.val();
+    if (s === 'generating') {
+      showScreen(myRole === 'mod' ? 'loadingScreen' : 'waitingScreen');
+    } else if (s === 'active') {
+      db.ref(`sim2/${roomId}/status`).off();
+      db.ref(`sim2/${roomId}/participants`).off();
+      loadCard();
+    }
+  });
+}
+
+// ══════════════════════════════════════
+// START ROUND
+// ══════════════════════════════════════
+async function startRound() {
+  showScreen('loadingScreen');
+  await db.ref(`sim2/${roomId}/status`).set('generating');
+
+  // Count real participants (non-mod)
+  const snap = await db.ref(`sim2/${roomId}/participants`).once('value');
+  const parts = snap.val() || {};
+  const participants = Object.entries(parts).filter(([,v]) => !v.isMod);
+  const total = Math.max(participants.length, numTN);
+
+  await generateAndDistribute(participants, total);
+}
+
+async function generateAndDistribute(participants, total) {
+  const numAG = Math.floor(total / 2.2);
+  const numAN = total - numAG;
+
+  // Generate via Claude API
+  const cards = await generateCards(numAG, numAN);
+
+  // Build flat array: employers + employees, then shuffle
+  const allCards = [
+    ...cards.employers.map(c => ({ ...c, type:'employer' })),
+    ...cards.employees.map(c => ({ ...c, type:'employee' }))
+  ];
+  shuffle(allCards);
+
+  // Assign to participants (or auto-slots)
+  const cardMap = {};
+  allCards.forEach((card, i) => {
+    const pid = participants[i] ? participants[i][0] : `slot_${i}`;
+    cardMap[pid] = card;
+  });
+
+  await db.ref(`sim2/${roomId}/cards`).set(cardMap);
+  await db.ref(`sim2/${roomId}/round`).set(round);
+  await db.ref(`sim2/${roomId}/status`).set('active');
+
+  if (myRole === 'mod') {
+    renderModView(cardMap);
+  }
+}
+
+// ══════════════════════════════════════
+// CLAUDE API
+// ══════════════════════════════════════
+async function generateCards(numAG, numAN) {
+  const exampleJSON = '{"employers":[{"firma":"REWE Kiel-Mitte","branche":"Einzelhandel","stelle":"Kassierer/in","aufgaben":["Kasse bedienen","Regale auffüllen","Kunden beraten"],"anforderungen":["Deutsch A2","Teamfähigkeit"],"gehalt":"2.100-2.400 EUR/Monat","arbeitszeit":"Teilzeit 25h","extras":"Personalrabatt 5%"}],"employees":[{"name":"Amira","alter":32,"herkunft":"Syrien","beruf":"Buchhalterin","erfahrung":"3 Jahre Buchhaltung","staerken":["Genau","Schnelle Lernerin"],"schwaechen":["Fachvokabular unsicher"],"ziel":"Stelle im Büro finden"}]}';
+
+  const prompt = "Du bist Assistent fuer einen Deutschkurs (B1/B2, Erwachsene mit Migrationshintergrund in Deutschland).\n\n"
+    + "Erstelle " + numAG + " Arbeitgeber-Steckbriefe und " + numAN + " Arbeitssuchende-Steckbriefe fuer ein Bewerbungsrollenspiel.\n\n"
+    + "REGELN:\n"
+    + "- Sehr vielfaeltige Branchen: Supermarkt, Pflegeheim, Baeckerei, Lager, Buero, Reinigung, Kindergarten, Restaurant, Werkstatt, Krankenhaus, Baumarkt, Hotel, Apotheke, IT-Firma, Friseur usw.\n"
+    + "- Arbeitssuchende: diverse Namen und Herkuenfte (Syrien, Afghanistan, Iran, Irak, Tuerkei, Marokko, Eritrea, Nigeria, Rumaenien, Ukraine, Vietnam usw.)\n"
+    + "- Alter zwischen 20 und 55 Jahren\n"
+    + "- Deutsch B1-Niveau: einfache, klare Sprache\n"
+    + "- Jeder Steckbrief muss EINZIGARTIG sein, keine Wiederholungen\n\n"
+    + "Antworte NUR mit reinem JSON ohne Markdown-Formatierung, exakt in diesem Format:\n"
+    + exampleJSON;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        messages: [{ role:"user", content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content.map(b => b.text||'').join('');
+    const clean = text.replace(/```json|```/g,'').trim();
+    return JSON.parse(clean);
+  } catch(e) {
+    console.error('API error:', e);
+    return fallbackCards(numAG, numAN);
+  }
+}
+
+function fallbackCards(numAG, numAN) {
+  const agPool = [
+    { firma:"Pflegeheim Sonnenschein",branche:"Pflege",stelle:"Pflegehilfskraft",aufgaben:["Senioren betreuen","Mahlzeiten begleiten","Dokumentation"],anforderungen:["Einfühlungsvermögen","Deutsch B1","Schichtdienst"],gehalt:"2.400–2.800 €",arbeitszeit:"Vollzeit 38h",extras:"Weiterbildung bezahlt" },
+    { firma:"Bäckerei Hoffmann",branche:"Lebensmittel",stelle:"Verkäufer/in",aufgaben:["Verkauf","Kasse","Ladentheke"],anforderungen:["Freundlichkeit","Frühschicht"],gehalt:"1.950–2.200 €",arbeitszeit:"Teilzeit 30h",extras:"Tägliche Backwaren gratis" },
+    { firma:"Logistik Nord GmbH",branche:"Lager/Logistik",stelle:"Lagerhelfer/in",aufgaben:["Waren einlagern","Kommissionieren","Verpacken"],anforderungen:["Körperliche Fitness","Gabelstapler von Vorteil"],gehalt:"2.200–2.500 €",arbeitszeit:"Früh- oder Spätschicht",extras:"Staplerschein wird bezahlt" },
+    { firma:"Kita Regenbogen",branche:"Erziehung",stelle:"Erzieher/in-Assistent",aufgaben:["Kinder betreuen","Spielgruppen leiten","Elterngespräche"],anforderungen:["Geduld","Deutsch B2","Ausbildung von Vorteil"],gehalt:"2.300–2.700 €",arbeitszeit:"Vollzeit",extras:"Mittagessen kostenlos" },
+  ];
+  const anPool = [
+    { name:"Fatima",alter:29,herkunft:"Marokko",beruf:"Bürokauffrau",erfahrung:"4 Jahre Büroarbeit in Casablanca",staerken:["Organisiert","Schnelle Lernerin"],schwaechen:["Deutsch noch unsicher"],ziel:"Stelle im Büro finden" },
+    { name:"Mihai",alter:38,herkunft:"Rumänien",beruf:"Elektriker",erfahrung:"10 Jahre Elektroinstallation",staerken:["Handwerklich geschickt","Zuverlässig"],schwaechen:["Deutsches Fachvokabular lernen"],ziel:"In einem deutschen Betrieb arbeiten" },
+    { name:"Leila",alter:24,herkunft:"Iran",beruf:"Grafikdesignerin",erfahrung:"Studium in Teheran, 2 Jahre Berufserfahrung",staerken:["Kreativ","Adobe-Kenntnisse"],schwaechen:["Wenig Berufserfahrung in DE"],ziel:"Kreativen Job finden" },
+    { name:"Omar",alter:44,herkunft:"Syrien",beruf:"Bauingenieur",erfahrung:"15 Jahre Bauwesen, Projektleitung",staerken:["Technisches Wissen","Führungserfahrung"],schwaechen:["Deutsches Zertifikat fehlt noch"],ziel:"Wieder im Bauwesen arbeiten" },
+    { name:"Ana",alter:31,herkunft:"Ukraine",beruf:"Krankenschwester",erfahrung:"7 Jahre Intensivstation Kiew",staerken:["Belastbar","Empathisch"],schwaechen:["Spezifisches Deutsch-Fachvokabular"],ziel:"Als Pflegefachkraft anerkannt werden" },
+  ];
+  const employers = Array.from({length:numAG}, (_,i) => agPool[i % agPool.length]);
+  const employees = Array.from({length:numAN}, (_,i) => anPool[i % anPool.length]);
+  return { employers, employees };
+}
+
+// ══════════════════════════════════════
+// LOAD CARD
+// ══════════════════════════════════════
+async function loadCard() {
+  const roundSnap = await db.ref(`sim2/${roomId}/round`).once('value');
+  round = roundSnap.val() || 1;
+  document.getElementById('roundPill').textContent = `Runde ${round}`;
+
+  if (myRole === 'mod') {
+    const snap = await db.ref(`sim2/${roomId}/cards`).once('value');
+    renderModView(snap.val() || {});
+  } else {
+    // Listen for my card (also re-listen for new rounds)
+    db.ref(`sim2/${roomId}/cards/${myId}`).on('value', snap => {
+      if (snap.val()) renderMyCard(snap.val());
+      else showScreen('waitingScreen');
+    });
+    db.ref(`sim2/${roomId}/status`).on('value', snap => {
+      if (snap.val() === 'generating') {
+        showScreen('waitingScreen');
+      } else if (snap.val() === 'active') {
+        const r = db.ref(`sim2/${roomId}/round`);
+        r.once('value', s => {
+          round = s.val() || 1;
+          document.getElementById('roundPill').textContent = `Runde ${round}`;
+        });
+      }
+    });
+  }
+}
+
+// ══════════════════════════════════════
+// RENDER: PARTICIPANT CARD
+// ══════════════════════════════════════
+function renderMyCard(card) {
+  showScreen('cardScreen');
+  const content = document.getElementById('cardContent');
+  content.innerHTML = '';
+  content.appendChild(buildCard(card, false));
+}
+
+// ══════════════════════════════════════
+// RENDER: MODERATOR VIEW
+// ══════════════════════════════════════
+function renderModView(cardMap) {
+  showScreen('cardScreen');
+  const content = document.getElementById('cardContent');
+  content.innerHTML = '';
+
+  const allCards   = Object.values(cardMap);
+  const employers  = allCards.filter(c => c.type==='employer');
+  const employees  = allCards.filter(c => c.type==='employee');
+
+  // Mod control panel
+  const panel = document.createElement('div');
+  panel.className = 'mod-panel';
+  panel.innerHTML = `
+    <div class="mod-panel-title">🎓 Moderator-Panel — Raum ${roomId}</div>
+    <div class="mod-stats">
+      <div class="mod-stat">
+        <span class="mod-stat-n" style="color:var(--amber)">${employers.length}</span>
+        <div class="mod-stat-l">🏢 Arbeitgeber</div>
+      </div>
+      <div class="mod-stat">
+        <span class="mod-stat-n" style="color:var(--sky)">${employees.length}</span>
+        <div class="mod-stat-l">👤 Arbeitssuchende</div>
+      </div>
+      <div class="mod-stat">
+        <span class="mod-stat-n" style="color:var(--rose)">${round}</span>
+        <div class="mod-stat-l">Runde</div>
+      </div>
+    </div>
+    <div class="mod-btns">
+      <button class="btn btn-amber" onclick="nextRound()" style="margin-top:0">🔄 Neue Runde</button>
+      <button class="btn btn-ghost" onclick="toggleAllCards()" style="margin-top:0">📋 Alle Karten</button>
+    </div>`;
+  content.appendChild(panel);
+
+  // Instruction box
+  const info = document.createElement('div');
+  info.className = 'info-box';
+  info.style.marginBottom = '1rem';
+  info.innerHTML = `
+    <strong>So läuft die Simulation:</strong><br>
+    1. Alle sehen ihre Karte auf dem Handy.<br>
+    2. <span style="color:var(--amber)">🏢 Arbeitgeber</span> stehen auf und beschreiben ihre Stelle.<br>
+    3. Passende <span style="color:var(--sky)">👤 Arbeitssuchende</span> stehen auf und bewerben sich.<br>
+    4. Gespräch führen — Sprechbausteine-Button als Hilfe nutzen.<br>
+    5. <em>Neue Runde</em> → KI generiert komplett neue Karten.`;
+  content.appendChild(info);
+
+  // All cards (hidden by default)
+  const allDiv = document.createElement('div');
+  allDiv.className = 'all-cards-section';
+  allDiv.id = 'allCardsDiv';
+  allDiv.style.display = 'none';
+
+  if (employers.length) {
+    const h = document.createElement('div');
+    h.className = 'all-cards-title';
+    h.textContent = '🏢 Arbeitgeber-Karten';
+    allDiv.appendChild(h);
+    employers.forEach(c => allDiv.appendChild(buildMiniCard(c)));
+  }
+  if (employees.length) {
+    const h = document.createElement('div');
+    h.className = 'all-cards-title';
+    h.style.marginTop = '0.75rem';
+    h.textContent = '👤 Arbeitssuchende-Karten';
+    allDiv.appendChild(h);
+    employees.forEach(c => allDiv.appendChild(buildMiniCard(c)));
+  }
+  content.appendChild(allDiv);
+}
+
+function toggleAllCards() {
+  const div = document.getElementById('allCardsDiv');
+  div.style.display = div.style.display === 'none' ? 'block' : 'none';
+}
+
+// ══════════════════════════════════════
+// NEXT ROUND
+// ══════════════════════════════════════
+async function nextRound() {
+  round++;
+  document.getElementById('roundPill').textContent = `Runde ${round}`;
+  showScreen('loadingScreen');
+  await db.ref(`sim2/${roomId}/status`).set('generating');
+
+  const snap = await db.ref(`sim2/${roomId}/participants`).once('value');
+  const parts = snap.val() || {};
+  const participants = Object.entries(parts).filter(([,v]) => !v.isMod);
+  const total = Math.max(participants.length, numTN);
+
+  await generateAndDistribute(participants, total);
+}
+
+// ══════════════════════════════════════
+// BUILD CARD (full)
+// ══════════════════════════════════════
+function buildCard(card, mini) {
+  const isEmp = card.type === 'employer';
+  const el = document.createElement('div');
+  el.className = 'role-card ' + (isEmp ? 'card-employer' : 'card-employee');
+
+  if (isEmp) {
+    el.innerHTML = `
+      <div class="card-band">
+        <div class="card-role-tag">🏢 Arbeitgeber · ${card.branche||''}</div>
+        <div class="card-name">${card.firma||''}</div>
+        <div class="card-sub">Gesucht: <strong style="color:var(--amber)">${card.stelle||''}</strong></div>
+      </div>
+      <div class="card-sep"></div>
+      <div class="card-body">
+        <div class="card-row">
+          <span class="card-icon">📋</span>
+          <div class="card-info"><strong>Aufgaben:</strong> ${(card.aufgaben||[]).join(' · ')}</div>
+        </div>
+        <div class="card-row">
+          <span class="card-icon">✅</span>
+          <div class="card-info"><strong>Anforderungen:</strong> ${(card.anforderungen||[]).join(' · ')}</div>
+        </div>
+        <div class="card-row">
+          <span class="card-icon">💰</span>
+          <div class="card-info"><strong>Gehalt:</strong> ${card.gehalt||''}</div>
+        </div>
+        <div class="card-row">
+          <span class="card-icon">⏰</span>
+          <div class="card-info"><strong>Arbeitszeit:</strong> ${card.arbeitszeit||''}</div>
+        </div>
+        <div class="card-row">
+          <span class="card-icon">🌟</span>
+          <div class="card-info"><strong>Extras:</strong> ${card.extras||'–'}</div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="phrases-btn" onclick="openModal('employer')">
+          💬 Sprechbausteine für Arbeitgeber
+        </button>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="card-band">
+        <div class="card-role-tag">👤 Arbeitssuchend · ${card.herkunft||''}</div>
+        <div class="card-name">${card.name||''}</div>
+        <div class="card-sub">${card.alter||''} Jahre · ${card.beruf||''}</div>
+      </div>
+      <div class="card-sep"></div>
+      <div class="card-body">
+        <div class="card-row">
+          <span class="card-icon">💼</span>
+          <div class="card-info"><strong>Erfahrung:</strong> ${card.erfahrung||''}</div>
+        </div>
+        <div class="card-row">
+          <span class="card-icon">💪</span>
+          <div class="card-info"><strong>Stärken:</strong> ${(card.staerken||[]).join(' · ')}</div>
+        </div>
+        <div class="card-row">
+          <span class="card-icon">🔧</span>
+          <div class="card-info"><strong>Schwäche:</strong> ${(card.schwaechen||[]).join(' · ')}</div>
+        </div>
+        <div class="card-row">
+          <span class="card-icon">🎯</span>
+          <div class="card-info"><strong>Ziel:</strong> ${card.ziel||''}</div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="phrases-btn" onclick="openModal('employee')">
+          💬 Sprechbausteine für Bewerbende
+        </button>
+      </div>`;
+  }
+  return el;
+}
+
+// ══════════════════════════════════════
+// BUILD MINI CARD (moderator overview)
+// ══════════════════════════════════════
+function buildMiniCard(card) {
+  const isEmp = card.type === 'employer';
+  const el = document.createElement('div');
+  el.className = 'mini-card';
+  el.innerHTML = `
+    <div class="mini-dot" style="background:${isEmp ? 'var(--amber)' : 'var(--sky)'}"></div>
+    <div class="mini-card-info">
+      <div class="mini-card-name">${isEmp ? card.firma : card.name}</div>
+      <div class="mini-card-sub">${isEmp ? card.stelle : `${card.alter} Jahre · ${card.beruf} · ${card.herkunft}`}</div>
+    </div>`;
+  return el;
+}
+
+// ══════════════════════════════════════
+// PHRASES MODAL
+// ══════════════════════════════════════
+function openModal(type) {
+  const isEmp = type === 'employer';
+  const phrases = isEmp ? PHRASES_EMPLOYER : PHRASES_EMPLOYEE;
+  const colorClass = isEmp ? 'phrase-amber' : 'phrase-sky';
+
+  document.getElementById('sheetTitle').textContent =
+    isEmp ? '💬 Sprechbausteine: Arbeitgeber' : '💬 Sprechbausteine: Bewerbende';
+
+  const content = document.getElementById('sheetContent');
+  content.innerHTML = '';
+  phrases.forEach(group => {
+    const sec = document.createElement('div');
+    sec.className = 'phrase-section';
+    sec.innerHTML = `<div class="phrase-section-title">${group.title}</div>`;
+    group.items.forEach(item => {
+      const p = document.createElement('div');
+      p.className = `phrase-item ${colorClass}`;
+      p.textContent = item;
+      sec.appendChild(p);
+    });
+    content.appendChild(sec);
+  });
+
+  document.getElementById('phrasesModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('phrasesModal').classList.remove('open');
+}
+
+function handleModalClick(e) {
+  if (e.target === document.getElementById('phrasesModal')) closeModal();
+}
+
+// ══════════════════════════════════════
+// SCREEN HELPER
+// ══════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>
